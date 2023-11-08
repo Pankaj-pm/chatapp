@@ -1,10 +1,14 @@
 import 'package:chatapp/firestore_helper.dart';
 import 'package:chatapp/main.dart';
 import 'package:chatapp/user_list.dart';
+import 'package:chatapp/util.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  int i = 0;
+
+  HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -53,12 +57,13 @@ class HomePage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => UserList(),
-              ));
+        onPressed: () async {
+          showScheduleNotification(i++, "Schedule", "Hellelelel");
+          // Navigator.push(
+          //     context,
+          //     MaterialPageRoute(
+          //       builder: (context) => UserList(),
+          //     ));
         },
       ),
     );

@@ -7,18 +7,33 @@ import 'package:chatapp/model/user.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 late FirebaseAuth auth;
+
+FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await notificationIni();
+  tz.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation("Asia/Kolkata"));
   auth = FirebaseAuth.instance;
   FireStoreHelper();
   runApp(const MyApp());
+}
+
+Future<void> notificationIni() async{
+
+  await flutterLocalNotificationsPlugin.initialize(InitializationSettings(
+    android: AndroidInitializationSettings("noti_icon"),
+  ));
 }
 
 class MyApp extends StatelessWidget {
