@@ -6,6 +6,7 @@ import 'package:chatapp/home_page.dart';
 import 'package:chatapp/model/user.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -14,13 +15,23 @@ import 'package:timezone/timezone.dart' as tz;
 
 late FirebaseAuth auth;
 
-FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =FlutterLocalNotificationsPlugin();
+FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+@pragma('vm:entry-point')
+Future<void> firebaseBgMsg(RemoteMessage message) async {
+  print("Remote bg Msg ${message.data}");
+  print("Remote bg Msg ${message.notification}");
+  print('Handling a background message ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  FirebaseMessaging.onBackgroundMessage(firebaseBgMsg);
+  await setupFlutterNotifications();
   await notificationIni();
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation("Asia/Kolkata"));
@@ -29,8 +40,7 @@ void main() async {
   runApp(const MyApp());
 }
 
-Future<void> notificationIni() async{
-
+Future<void> notificationIni() async {
   await flutterLocalNotificationsPlugin.initialize(InitializationSettings(
     android: AndroidInitializationSettings("noti_icon"),
   ));
@@ -51,6 +61,27 @@ class MyApp extends StatelessWidget {
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
+}
+
+Future<void> setupFlutterNotifications() async {
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(
+        AndroidNotificationChannel(
+          'high_importance_channel', // id
+          'High Importance Notifications', // title
+          description: 'This channel is used for important notifications.', // description
+          importance: Importance.high,
+        ),
+      );
+
+  /// Update the iOS foreground notification presentation options to allow
+  /// heads up notifications.
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
 }
 
 class MyHomePage extends StatefulWidget {
@@ -157,7 +188,6 @@ class _MyHomePageState extends State<MyHomePage> {
       UserCredential userCredential =
           await auth.signInWithEmailAndPassword(email: emailController.text, password: passController.text);
       print(userCredential.user);
-
 
       if (userCredential.user != null) {
         FireStoreHelper().addUser(MyUser(email: emailController.text));
