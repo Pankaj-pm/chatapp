@@ -1,29 +1,30 @@
 import 'dart:math';
 
+import 'package:chatapp/chat_controler.dart';
 import 'package:chatapp/firestore_helper.dart';
 import 'package:chatapp/model/chat_msg.dart';
+import 'package:chatapp/model/fcm_model.dart';
 import 'package:chatapp/model/user.dart';
+import 'package:chatapp/network/api_end_point.dart';
+import 'package:chatapp/network/http_helper.dart';
 import 'package:chatapp/util.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 class ChatScreen extends StatefulWidget {
-  final MyUser myUser;
+  // MyUser? myUser;
 
-  const ChatScreen({super.key, required this.myUser});
+  ChatScreen({super.key});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  TextEditingController msgController = TextEditingController();
-
-  DocumentReference? editRef;
-  var cUser = FirebaseAuth.instance.currentUser?.email ?? "";
-
+  ChatController controller = Get.put(ChatController());
 
 
   @override
@@ -43,7 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
         title: ListTile(
           leading: CircleAvatar(),
           contentPadding: EdgeInsets.zero,
-          title: Text(widget.myUser.email ?? ""),
+          title: Text(controller.myUser?.email ?? ""),
           subtitle: Text("Online"),
         ),
       ),
@@ -54,8 +55,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 stream: FireStoreHelper()
                     .firestore
                     .collection("chat")
-                    .doc("$cUser${widget.myUser.email ?? ""}")
-                    .collection("$cUser${widget.myUser.email ?? ""}")
+                    .doc("${controller.cUser}${controller.myUser?.email ?? ""}")
+                    .collection("${controller.cUser}${controller.myUser?.email ?? ""}")
                     // .orderBy(FieldPath.documentId,descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
@@ -66,7 +67,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       itemBuilder: (context, index) {
                         var docId = docsList?[index].id;
                         var chatMsg = ChatMsg.fromJson(docsList?[index].data() ?? {});
-                        bool isSender = chatMsg.senderId == cUser;
+                        bool isSender = chatMsg.senderId == controller.cUser;
 
                         var dateFormat = DateFormat("h:mm a");
                         String df = "";
@@ -77,7 +78,6 @@ class _ChatScreenState extends State<ChatScreen> {
                         } catch (e) {
                           print("Error Parse $e");
                         }
-                        
 
                         return Align(
                           alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
@@ -87,23 +87,18 @@ class _ChatScreenState extends State<ChatScreen> {
                               FireStoreHelper()
                                   .firestore
                                   .collection("chat")
-                                  .doc("$cUser${widget.myUser.email ?? ""}")
-                                  .collection("$cUser${widget.myUser.email ?? ""}")
-                                  .doc(docId).delete();
+                                  .doc("${controller.cUser}${controller.myUser?.email ?? ""}")
+                                  .collection("${controller.cUser}${controller.myUser?.email ?? ""}")
+                                  .doc(docId)
+                                  .delete();
                             },
                             child: Column(
                               crossAxisAlignment: isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                               children: [
                                 InkWell(
                                   onLongPress: () {
-                                    editRef = FireStoreHelper()
-                                        .firestore
-                                        .collection("chat")
-                                        .doc("$cUser${widget.myUser.email ?? ""}")
-                                        .collection("$cUser${widget.myUser.email ?? ""}")
-                                        .doc(docId);
-
-                                    msgController.text=chatMsg.msg??"";
+                                    print("${chatMsg.senderId}==${controller.cUser}");
+                                    controller.onEdit(chatMsg,docId??"");
 
                                     print("docId => $docId");
                                   },
@@ -142,10 +137,10 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 Expanded(
                     child: TextField(
-                  controller: msgController,
+                  controller: controller.msgController,
                   onSubmitted: (value) {
                     print("Val $value");
-                    send();
+                    controller.send();
                   },
                   decoration: InputDecoration(
                       hintText: "Message",
@@ -155,10 +150,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 )),
                 IconButton(
                     onPressed: () {
-                      if (editRef != null) {
-                        edtMsg(editRef!);
+                      if (controller.editRef != null) {
+                        controller.edtMsg(controller.editRef!);
                       } else {
-                        send();
+                       controller. send();
                       }
                     },
                     icon: Icon(Icons.send))
@@ -172,34 +167,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    msgController.dispose();
+    controller.msgController.dispose();
     super.dispose();
   }
 
-  void send() {
-    ChatMsg chatMsg = ChatMsg(
-      msg: msgController.text,
-      isRead: false,
-      senderId: cUser,
-      time: DateTime.now().toString(),
-    );
-
-    FireStoreHelper().sendMsg(cUser, widget.myUser.email ?? "", chatMsg);
-    showNotification(Random().nextInt(500), cUser, msgController.text);
-    msgController.clear();
-
-  }
-
-  void edtMsg(DocumentReference reference) {
-    ChatMsg chatMsg = ChatMsg(
-      msg: msgController.text,
-      isRead: false,
-      senderId: cUser,
-      time: DateTime.now().toString(),
-    );
-
-    reference.update(chatMsg.toJson());
-    editRef=null;
-    msgController.clear();
-  }
 }

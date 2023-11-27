@@ -2,12 +2,12 @@ import 'package:chatapp/firestore_helper.dart';
 import 'package:chatapp/main.dart';
 import 'package:chatapp/user_list.dart';
 import 'package:chatapp/util.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class HomePage extends StatefulWidget {
-
   HomePage({super.key});
 
   @override
@@ -25,8 +25,9 @@ class _HomePageState extends State<HomePage> {
       print("Remote Msg ${event.data}");
       print("Remote Msg ${event.notification?.title}");
       print("Remote Msg ${event.notification?.body}");
-      showNotification(0, event.notification?.title??"", event.notification?.body??"");
+      showNotification(0, event.notification?.title ?? "", event.notification?.body ?? "");
     });
+    FireStoreHelper().updateToken();
   }
 
   @override
@@ -75,15 +76,20 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+      body: Center(
+          child: Text(
+        FirebaseAuth.instance.currentUser?.email ?? "",
+        style: TextStyle(fontSize: 55),
+      )),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           // showScheduleNotification(i++, "Schedule", "Hellelelel");
-          showNotification(i++, "Schedule", "Hellelelel");
-          // Navigator.push(
-          //     context,
-          //     MaterialPageRoute(
-          //       builder: (context) => UserList(),
-          //     ));
+          // showNotification(i++, "Schedule", "Hellelelel");
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => UserList(),
+              ));
         },
       ),
     );

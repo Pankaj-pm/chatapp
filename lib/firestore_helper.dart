@@ -1,6 +1,7 @@
 import 'package:chatapp/model/chat_msg.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'model/user.dart';
 
@@ -18,12 +19,23 @@ class FireStoreHelper {
     firestore.collection("User").doc(user.email ?? "").set(user.toJson());
   }
 
-  void addCounter() {
+  void addCounter({String? userName}) {
     User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       firestore.collection("User").doc(currentUser.email ?? "").update({
         "email": currentUser.email,
         "loginCount": FieldValue.increment(1),
+      });
+    }
+  }
+
+  void updateToken() async{
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    var token =await  FirebaseMessaging.instance.getToken();
+
+    if (currentUser != null) {
+      firestore.collection("User").doc(currentUser.email ?? "").update({
+        "fcmToken": token,
       });
     }
   }

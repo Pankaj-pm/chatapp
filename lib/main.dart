@@ -1,14 +1,17 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:chatapp/chat_screen.dart';
 import 'package:chatapp/firebase_options.dart';
 import 'package:chatapp/firestore_helper.dart';
 import 'package:chatapp/home_page.dart';
 import 'package:chatapp/model/user.dart';
+import 'package:chatapp/util.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -19,9 +22,48 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNo
 
 @pragma('vm:entry-point')
 Future<void> firebaseBgMsg(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  setupFlutterNotifications();
+
+  showNotification(0, message.notification?.title ?? "", message.notification?.body ?? "");
+
   print("Remote bg Msg ${message.data}");
   print("Remote bg Msg ${message.notification}");
   print('Handling a background message ${message.messageId}');
+}
+
+bool isFlutterLocalNotificationsInitialized = false;
+
+Future<void> setupFlutterNotifications() async {
+  if (isFlutterLocalNotificationsInitialized) {
+    return;
+  }
+
+  flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  /// Create an Android Notification Channel.
+  ///
+  /// We use this channel in the `AndroidManifest.xml` file to override the
+  /// default FCM channel to enable heads up notifications.
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(AndroidNotificationChannel(
+        'high_importance_channel', // id
+        'High Importance Notifications', // title
+        description: 'This channel is used for important notifications.', // description
+        importance: Importance.high,
+      ));
+
+  /// Update the iOS foreground notification presentation options to allow
+  /// heads up notifications.
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  isFlutterLocalNotificationsInitialized = true;
 }
 
 void main() async {
@@ -35,6 +77,12 @@ void main() async {
   await notificationIni();
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation("Asia/Kolkata"));
+  FirebaseMessaging.instance.onTokenRefresh.listen((event) {
+    print("onTokenRefresh $event");
+  });
+  FirebaseMessaging.instance.getToken().then((value) {
+    print("getToken $value");
+  });
   auth = FirebaseAuth.instance;
   FireStoreHelper();
   runApp(const MyApp());
@@ -51,7 +99,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       title: 'Flutter Demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -59,29 +107,11 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      getPages: [
+        GetPage(name: "/chat-screen", page: () => ChatScreen(),),
+      ],
     );
   }
-}
-
-Future<void> setupFlutterNotifications() async {
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(
-        AndroidNotificationChannel(
-          'high_importance_channel', // id
-          'High Importance Notifications', // title
-          description: 'This channel is used for important notifications.', // description
-          importance: Importance.high,
-        ),
-      );
-
-  /// Update the iOS foreground notification presentation options to allow
-  /// heads up notifications.
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
 }
 
 class MyHomePage extends StatefulWidget {
@@ -96,6 +126,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passController = TextEditingController();
+  TextEditingController nameController = TextEditingController();
 
   @override
   void initState() {
@@ -136,6 +167,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 controller: passController,
                 decoration: InputDecoration(hintText: "Password"),
               ),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(hintText: "User Name"),
+              ),
               ElevatedButton(
                   onPressed: () async {
                     login();
@@ -144,9 +179,11 @@ class _MyHomePageState extends State<MyHomePage> {
               ElevatedButton(
                   onPressed: () async {
                     UserCredential createUserWithEmailAndPassword = await auth.createUserWithEmailAndPassword(
-                        email: emailController.text, password: passController.text);
+                      email: emailController.text,
+                      password: passController.text,
+                    );
                     if (createUserWithEmailAndPassword.user != null) {
-                      FireStoreHelper().addUser(MyUser(email: emailController.text));
+                      FireStoreHelper().addUser(MyUser(email: emailController.text,userName: nameController.text));
                       Navigator.pushReplacement(context, MaterialPageRoute(
                         builder: (context) {
                           return HomePage();
@@ -190,7 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
       print(userCredential.user);
 
       if (userCredential.user != null) {
-        FireStoreHelper().addUser(MyUser(email: emailController.text));
+        FireStoreHelper().addUser(MyUser(email: emailController.text,userName: nameController.text));
         FireStoreHelper().addCounter();
         Navigator.pushReplacement(context, MaterialPageRoute(
           builder: (context) {

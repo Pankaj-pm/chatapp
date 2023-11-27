@@ -3,6 +3,7 @@ import 'package:chatapp/firestore_helper.dart';
 import 'package:chatapp/model/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class UserList extends StatefulWidget {
   const UserList({super.key});
@@ -31,17 +32,23 @@ class _UserListState extends State<UserList> {
                     onTap: () {
 
                       var myUser = MyUser.fromJson(doc?.data()??{});
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (context) {
-                          return ChatScreen(myUser: myUser);
-                        },
-                      ));
+
+                      // Get.to(ChatScreen(myUser: myUser));
+                      Get.toNamed("chat-screen",arguments: myUser);
+                      // Navigator.push(context, MaterialPageRoute(
+                      //   builder: (context) {
+                      //     return ChatScreen(myUser: myUser);
+                      //   },
+                      // ));
+
+                      // Navigator.pushNamed(context, "chat-screen",arguments: myUser);
 
                     },
                     leading: CircleAvatar(
                       child: Text("a"),
                     ),
                     title: Text(doc?.id ?? ""),
+                    //title: Text("${doc?.data()["userName"]}"),
                   );
                 },
                 separatorBuilder: (BuildContext context, int index) {
